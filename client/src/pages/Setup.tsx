@@ -44,6 +44,7 @@ export default function Setup() {
   const [icp, setIcp] = useState({
     targetCategory: "", targetCity: "", minRating: 0, maxRating: 5, minReviews: 0, maxReviews: 500,
     keywords: [] as string[], painPoints: [] as string[], numberOfLeads: 30,
+    dreamOutcome: "",
   });
   const [keyword, setKeyword] = useState("");
   const [isStarting, setIsStarting] = useState(false);
@@ -335,6 +336,20 @@ export default function Setup() {
                 <Slider min={1} max={5} step={0.5} value={[icp.maxRating]}
                   onValueChange={([v]) => setIcp(p => ({ ...p, maxRating: v }))} />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-sm text-muted-foreground">
+                Kundens drømmeutfall <span className="text-xs text-primary ml-1">(Hormozi-metoden)</span>
+              </Label>
+              <Textarea
+                placeholder="f.eks. Fulle dager i bilen, kunder som booker selv mens du sover, og Google-anmeldelser som selger for deg."
+                value={icp.dreamOutcome}
+                onChange={e => setIcp(p => ({ ...p, dreamOutcome: e.target.value }))}
+                className="bg-secondary border-border resize-none text-sm"
+                rows={2}
+              />
+              <p className="text-xs text-muted-foreground">AI-en bruker dette til å skrive meldinger som treffer følelser, ikke bare features.</p>
             </div>
 
             <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm text-muted-foreground">
