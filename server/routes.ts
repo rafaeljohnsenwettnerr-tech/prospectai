@@ -160,6 +160,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       { header: "E-post", key: "email", width: 32 },
       { header: "Nettside", key: "website", width: 35 },
       { header: "Google Maps", key: "googleMapsUrl", width: 18 },
+      { header: "Åpningstider", key: "openingHours", width: 35 },
       { header: "Rating", key: "rating", width: 10 },
       { header: "Anmeldelser", key: "reviewCount", width: 14 },
       { header: "Lead Score", key: "leadScore", width: 13 },
@@ -192,6 +193,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         phone: l.phone || "",
         email: l.email || "",
         website: l.website || "",
+        openingHours: (l as any).openingHours || "",
         googleMapsUrl: l.googleMapsUrl || "",
         rating: l.rating ?? "",
         reviewCount: l.reviewCount ?? "",
@@ -260,12 +262,30 @@ async function runScrapeJob(
 
   try {
     // Step 1: Get raw leads from Google Maps via Apify
-    const rawLeads: RawLead[] = await apifyGoogleMaps(
-      icp.targetCategory,
-      icp.targetCity,
-      icp.numberOfLeads,
-      apiConfig.apifyKey
-    );
+    // Support multi-category × multi-city (all combinations)
+    const categories: string[] = icp.targetCategories?.length
+      ? icp.targetCategories
+      : [icp.targetCategory].filter(Boolean);
+    const cities: string[] = icp.targetCities?.length
+      ? icp.targetCities
+      : [icp.targetCity].filter(Boolean);
+
+    const combos = categories.flatMap((cat: string) => cities.map((city: string) => ({ cat, city })));
+    const leadsPerCombo = Math.ceil(icp.numberOfLeads / combos.length);
+
+    console.log(`[Job ${jobId}] ${combos.length} combos (${categories.length} categories × ${cities.length} cities), ~${leadsPerCombo} leads each`);
+
+    const allRaw: RawLead[] = [];
+    const seen = new Set<string>();
+    for (const { cat, city } of combos) {
+      console.log(`[Job ${jobId}] Scraping: ${cat} in ${city}`);
+      const batch = await apifyGoogleMaps(cat, city, leadsPerCombo, apiConfig.apifyKey);
+      for (const lead of batch) {
+        const key = (lead.name + lead.address).toLowerCase().replace(/\s+/g, "");
+        if (!seen.has(key)) { seen.add(key); allRaw.push(lead); }
+      }
+    }
+    const rawLeads = allRaw.slice(0, icp.numberOfLeads);
 
     console.log(`[Job ${jobId}] Apify returned ${rawLeads.length} raw leads`);
 
@@ -317,8 +337,14 @@ async function runScrapeJob(
           leadScoreBreakdown: enriched.leadScoreBreakdown || [],
           healthScoreBreakdown: enriched.healthScoreBreakdown || [],
           coldMessage: enriched.coldMessage || null,
+          followUp1Day: enriched.followUp1Day || null,
+          followUp2Day: enriched.followUp2Day || null,
           followUp3Day: enriched.followUp3Day || null,
+          followUp4Day: enriched.followUp4Day || null,
+          followUp5Day: enriched.followUp5Day || null,
+          followUp6Day: enriched.followUp6Day || null,
           followUp7Day: enriched.followUp7Day || null,
+          openingHours: enriched.openingHours || null,
           status: "new",
         });
 
