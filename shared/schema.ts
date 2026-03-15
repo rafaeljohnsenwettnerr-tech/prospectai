@@ -89,9 +89,14 @@ export const leads = pgTable("leads", {
   leadScoreBreakdown: jsonb("lead_score_breakdown").$type<ScoreBreakdown[]>(),
   healthScoreBreakdown: jsonb("health_score_breakdown").$type<ScoreBreakdown[]>(),
 
-  // Outreach
+  // Outreach — Hormozi-kadense (Dag 0-7)
   coldMessage: text("cold_message"),
+  followUp1Day: text("follow_up_1day"),
+  followUp2Day: text("follow_up_2day"),
   followUp3Day: text("follow_up_3day"),
+  followUp4Day: text("follow_up_4day"),
+  followUp5Day: text("follow_up_5day"),
+  followUp6Day: text("follow_up_6day"),
   followUp7Day: text("follow_up_7day"),
 
   status: text("status").notNull().default("new"), // new | contacted | interested | not_interested
