@@ -76,6 +76,7 @@ export const leads = pgTable("leads", {
 
   // Enrichment
   websiteSummary: text("website_summary"),
+  openingHours: text("opening_hours"),   // e.g. "Man-Fre: 08-17, Lør: 09-15"
   facebookLastPost: text("facebook_last_post"),
   facebookLastPostDate: text("facebook_last_post_date"),
   facebookFollowers: integer("facebook_followers"),
