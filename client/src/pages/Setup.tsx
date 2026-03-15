@@ -32,7 +32,7 @@ export default function Setup() {
   const [showKeys, setShowKeys] = useState(false);
 
   // API keys — prefilled from server (.env)
-  const [keys, setKeys] = useState({ openaiKey: "", tavilyKey: "", firecrawlKey: "", apifyKey: "", findymailKey: "" });
+  const [keys, setKeys] = useState({ openaiKey: "", tavilyKey: "", firecrawlKey: "", apifyKey: "", findymailKey: "", hunterApiKey: "" });
   const [keysPrefilled, setKeysPrefilled] = useState(false);
 
   // Business profile
@@ -67,6 +67,7 @@ export default function Setup() {
     firecrawlKey: keys.firecrawlKey || existingKeys?.firecrawlKey || "",
     apifyKey: keys.apifyKey || existingKeys?.apifyKey || "",
     findymailKey: keys.findymailKey || existingKeys?.findymailKey || "",
+    hunterApiKey: keys.hunterApiKey || existingKeys?.hunterApiKey || "",
   };
 
   const saveMutation = useMutation({
@@ -162,7 +163,8 @@ export default function Setup() {
               { key: "tavilyKey", label: "Tavily API-nøkkel", placeholder: "tvly-..." },
               { key: "firecrawlKey", label: "Firecrawl API-nøkkel", placeholder: "fc-..." },
               { key: "apifyKey", label: "Apify API-nøkkel", placeholder: "apify_api_..." },
-              { key: "findymailKey", label: "Findymail API-nøkkel (valgfri — finner e-poster automatisk)", placeholder: "fm_..." },
+              { key: "findymailKey", label: "Findymail API-nøkkel (valgfri)", placeholder: "fm_..." },
+              { key: "hunterApiKey", label: "Hunter.io API-nøkkel (anbefalt — finner e-poster via domene)", placeholder: "hunter_..." },
             ].map(({ key, label, placeholder }) => (
               <div key={key} className="space-y-1">
                 <Label className="text-sm text-muted-foreground">{label}</Label>
