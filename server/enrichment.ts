@@ -217,18 +217,30 @@ export async function apifyGoogleMaps(
       return true;
     }).slice(0, maxResults);
     console.log(`[Apify] ${allItems.length} unique leads after dedup (limit: ${maxResults})`);
-    return allItems.map((item: any): RawLead => ({
-      name: item.title || item.name || "",
-      category: item.categoryName || "",
-      address: item.address || "",
-      city: item.city || city,
-      phone: item.phone || "",
-      website: item.website || "",
-      googleMapsUrl: item.url || "",
-      rating: item.totalScore ?? null,
-      reviewCount: item.reviewsCount ?? null,
-      googleDescription: item.description || "",
-    }));
+    return allItems.map((item: any): RawLead => {
+      // Parse opening hours from Apify openingHours array
+      let openingHours: string | null = null;
+      if (item.openingHours && Array.isArray(item.openingHours) && item.openingHours.length > 0) {
+        openingHours = item.openingHours
+          .map((h: any) => `${h.day}: ${h.hours}`)
+          .join(" | ");
+      } else if (typeof item.openingHours === "string" && item.openingHours) {
+        openingHours = item.openingHours;
+      }
+      return {
+        name: item.title || item.name || "",
+        category: item.categoryName || "",
+        address: item.address || "",
+        city: item.city || city,
+        phone: item.phone || "",
+        website: item.website || "",
+        googleMapsUrl: item.url || "",
+        rating: item.totalScore ?? null,
+        reviewCount: item.reviewsCount ?? null,
+        googleDescription: item.description || "",
+        openingHours,
+      };
+    });
   } catch (e: any) {
     console.error("Apify error:", e.message);
     return [];
@@ -246,6 +258,7 @@ export type RawLead = {
   rating: number | null;
   reviewCount: number | null;
   googleDescription: string;
+  openingHours: string | null;
 };
 
 // ── Main enrichment function ──────────────────────────────────────────────────
@@ -312,6 +325,8 @@ export async function enrichLead(
     raw, icp, sellerInfo, tavilyResult, websiteContent, facebookContent, apiConfig.openaiKey, icp.dreamOutcome
   );
 
+  // Pass through openingHours from raw Apify data
+  enriched.openingHours = raw.openingHours || null;
   return { ...enriched, ...gptResult };
 }
 
