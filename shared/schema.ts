@@ -126,4 +126,5 @@ export type ApiConfig = {
   firecrawlKey: string;
   apifyKey: string;
   findymailKey?: string;
+  hunterApiKey?: string;
 };
