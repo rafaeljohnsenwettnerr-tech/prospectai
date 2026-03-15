@@ -214,7 +214,7 @@ export type RawLead = {
 // ── Main enrichment function ──────────────────────────────────────────────────
 export async function enrichLead(
   raw: RawLead,
-  icp: IcpProfile,
+  icp: IcpProfile & { dreamOutcome?: string },
   sellerInfo: { name: string; category: string; valueProposition: string; senderName: string },
   apiConfig: ApiConfig
 ): Promise<Partial<Lead>> {
@@ -262,7 +262,7 @@ export async function enrichLead(
 
   // 5. GPT analysis — pain signals, scores, outreach
   const gptResult = await analyzeWithGPT(
-    raw, icp, sellerInfo, tavilyResult, websiteContent, facebookContent, apiConfig.openaiKey
+    raw, icp, sellerInfo, tavilyResult, websiteContent, facebookContent, apiConfig.openaiKey, icp.dreamOutcome
   );
 
   return { ...enriched, ...gptResult };
@@ -276,7 +276,8 @@ async function analyzeWithGPT(
   tavilyData: string,
   websiteContent: string,
   facebookContent: string,
-  openaiKey: string
+  openaiKey: string,
+  dreamOutcome?: string
 ): Promise<Partial<Lead>> {
   const systemPrompt = `Du er en ekspert på B2B lead-analyse og salgspsykologi. 
 Du analyserer lokale servicebedrifter for salgsmuligheter og skriver norske outreach-meldinger.
@@ -288,6 +289,7 @@ Navn: ${seller.name}
 Kategori: ${seller.category}
 Verdiforslag: ${seller.valueProposition}
 Selger heter: ${seller.senderName}
+Kundens drømmeutfall: ${dreamOutcome || "Mer booking, mer penger, mindre stress, Google-anmeldelser som selger automatisk"}
 
 LEAD SOM SKAL ANALYSERES:
 Navn: ${raw.name}
@@ -321,9 +323,14 @@ OPPGAVE: Analyser denne bedriften og returner JSON med følgende struktur:
   "healthScoreBreakdown": [
     {"label": "Norsk label", "points": <tall>, "reason": "Forklaring"}
   ],
-  "coldMessage": "<Personalisert kald melding på norsk, maks 120 ord. Nevn noe spesifikt om bedriften. Avslutt med konkret CTA.>",
-  "followUp3Day": "<Oppf\u00f8lging etter 3 dager, mer direkte, maks 80 ord>",
-  "followUp7Day": "<Siste sjanse melding etter 7 dager, kort og direkte, maks 60 ord>",
+  "coldMessage": "<Personalisert kald melding på norsk, maks 120 ord. Bruk 'drømmeutfall'-språk: mer penger inn, fulle dager, Google-anmeldelser som selger mens de sover. Nevn noe spesifikt om bedriften. Avslutt med konkret CTA.>",
+  "followUp1Day": "<Oppfølging dag 1 — ring-reminder SMS, 2 setninger maks>",
+  "followUp2Day": "<Oppfølging dag 2 — ny vinkel, fremdeles kort>",
+  "followUp3Day": "<Dag 3 — mer direkte, spør om de har 10 min, maks 60 ord>",
+  "followUp4Day": "<Dag 4 — kort og direkte, maks 40 ord>",
+  "followUp5Day": "<Dag 5 — kort og direkte, maks 40 ord>",
+  "followUp6Day": "<Dag 6 — kort og direkte, maks 40 ord>",
+  "followUp7Day": "<Dag 7 — siste sjanse, kort og direkte, maks 40 ord>",
   "facebookLastPost": "<Siste Facebook innhold funnet, eller null>",
   "facebookLastPostDate": "<Dato for siste post hvis funnet, eller null>",
   "lastReviewDate": "<Siste anmeldelsesdato hvis funnet, eller null>"
@@ -386,7 +393,12 @@ Health score retningslinjer:
       leadScoreBreakdown: parsed.leadScoreBreakdown || [],
       healthScoreBreakdown: parsed.healthScoreBreakdown || [],
       coldMessage: parsed.coldMessage || "",
+      followUp1Day: parsed.followUp1Day || "",
+      followUp2Day: parsed.followUp2Day || "",
       followUp3Day: parsed.followUp3Day || "",
+      followUp4Day: parsed.followUp4Day || "",
+      followUp5Day: parsed.followUp5Day || "",
+      followUp6Day: parsed.followUp6Day || "",
       followUp7Day: parsed.followUp7Day || "",
       facebookLastPost: parsed.facebookLastPost || null,
       facebookLastPostDate: parsed.facebookLastPostDate || null,
@@ -423,8 +435,13 @@ function buildFallbackScores(raw: RawLead): Partial<Lead> {
     healthScore: raw.website ? 55 : 35,
     leadScoreBreakdown: [{ label: "Automatisk beregning", points: baseScore, reason: "Basert på tilgjengelig data" }],
     healthScoreBreakdown: [{ label: "Data tilgjengelighet", points: raw.website ? 55 : 35, reason: raw.website ? "Nettside funnet" : "Ingen nettside" }],
-    coldMessage: `Hei! Jeg heter ${raw.name} og jobber med lokale servicebedrifter i ${raw.city}. Jeg hjelper bedrifter som din med å automatisere Google-anmeldelser og online booking. Kan vi ta en rask prat?`,
-    followUp3Day: `Hei igjen! Sendte deg en melding for noen dager siden om automatisering av Google-anmeldelser. Har du 10 minutter til en rask samtale?`,
-    followUp7Day: `Siste melding fra meg — hjelper ${raw.city}-bedrifter med mer booking og bedre Google-synlighet. Interessert?`,
+    coldMessage: `Hei! Jeg heter ${raw.name} og jobber med lokale servicebedrifter i ${raw.city}. Tenk deg: fulle dager i bilen, kunder som booker selv mens du sover, og Google-anmeldelser som selger for deg. Det er det vi leverer. Kan vi ta en rask prat?`,
+    followUp1Day: `Hei — prøver igjen. Hjelper bilpleie-bedrifter i ${raw.city} med automatisk booking og reviews. 5 min?`,
+    followUp2Day: `Hei! Bare en rask påminnelse — mange av konkurrentene dine booker nå online døgnet rundt. Vil du henge med?`,
+    followUp3Day: `Hei igjen! Sendte deg melding for noen dager siden. Har du 10 minutter til en rask samtale om hvordan vi kan fylle opp kalenderen din?`,
+    followUp4Day: `Hei — kort og godt: automatisk booking + Google-reviews = mer penger, mindre stress. Interessert?`,
+    followUp5Day: `Hei! Siste par bedrifter vi startet med gikk fra 15 til 80 reviews på 3 måneder. Vil du ha de samme resultatene?`,
+    followUp6Day: `Hei — vil bare si at tilbudet vårt om gratis oppsett + 30 dager gratis fremdeles gjelder. Interessert?`,
+    followUp7Day: `Siste melding fra meg — hjelper ${raw.city}-bedrifter med mer booking og bedre Google-synlighet. Si ifra hvis timing ikke passer, så tar jeg kontakt igjen om 30 dager.`,
   };
 }
