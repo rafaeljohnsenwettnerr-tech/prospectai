@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Download, RefreshCw, Search, Star, Phone, Mail, Globe, AlertTriangle,
-  TrendingUp, ChevronRight, Loader2, Clock, CheckCircle2, XCircle, Flame
+  TrendingUp, ChevronRight, Loader2, Clock, CheckCircle2, XCircle, Flame, MapPin
 } from "lucide-react";
 import type { Lead, ScrapeJob, PainSignal } from "@shared/schema";
 
@@ -308,7 +308,19 @@ export default function Dashboard() {
                         <Globe size={11} /> Nettside
                       </a>
                     )}
+                    {lead.googleMapsUrl && (
+                      <a href={lead.googleMapsUrl} target="_blank" rel="noopener" className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium">
+                        <MapPin size={11} /> Google Maps
+                      </a>
+                    )}
                   </div>
+                  {/* Opening hours */}
+                  {(lead as any).openingHours && (
+                    <div className="flex items-start gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                      <Clock size={10} className="mt-0.5 shrink-0 text-primary/60" />
+                      <span className="line-clamp-1">{(lead as any).openingHours}</span>
+                    </div>
+                  )}
 
                   {/* Pain signals */}
                   {lead.painSignals && lead.painSignals.length > 0 && (
