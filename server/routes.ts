@@ -19,6 +19,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       firecrawlKey: z.string().min(1),
       apifyKey: z.string().min(1),
       findymailKey: z.string().optional(),
+      hunterApiKey: z.string().optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Ugyldig API-nøkler" });
@@ -41,6 +42,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       firecrawlKey: cfg.firecrawlKey || "",
       apifyKey: cfg.apifyKey || "",
       findymailKey: cfg.findymailKey || "",
+      hunterApiKey: cfg.hunterApiKey || "",
     });
   });
 
