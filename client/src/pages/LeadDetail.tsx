@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft, Star, Phone, Mail, Globe, AlertTriangle, Copy, CheckCircle2,
-  MessageSquare, Clock, Zap, TrendingUp, ShieldCheck, Facebook
+  MessageSquare, Clock, Zap, TrendingUp, ShieldCheck, Facebook, MapPin
 } from "lucide-react";
 import type { Lead, PainSignal, ScoreBreakdown } from "@shared/schema";
 
@@ -137,7 +137,22 @@ export default function LeadDetail() {
                     <Facebook size={14} /> Facebook
                   </a>
                 )}
+                {lead.googleMapsUrl && (
+                  <a href={lead.googleMapsUrl} target="_blank" rel="noopener" data-testid="link-maps"
+                    className="flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+                    <MapPin size={14} /> Google Maps
+                  </a>
+                )}
               </div>
+              {(lead as any).openingHours && (
+                <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-secondary/40 border border-border">
+                  <Clock size={13} className="text-primary/70 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium mb-0.5">Åpningstider</p>
+                    <p className="text-xs text-foreground">{(lead as any).openingHours}</p>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
               <div className="flex gap-3">
