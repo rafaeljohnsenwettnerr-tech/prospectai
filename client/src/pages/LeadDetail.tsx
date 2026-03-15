@@ -201,7 +201,12 @@ export default function LeadDetail() {
         <TabsContent value="outreach" className="space-y-3 mt-4">
           {[
             { key: "coldMessage", label: "Kald melding", icon: MessageSquare, color: "text-primary", badge: "Dag 0" },
+            { key: "followUp1Day", label: "Ring + SMS", icon: Clock, color: "text-blue-400", badge: "Dag 1" },
+            { key: "followUp2Day", label: "Ny vinkel", icon: Clock, color: "text-blue-400", badge: "Dag 2" },
             { key: "followUp3Day", label: "Oppfølging", icon: Clock, color: "text-amber-400", badge: "Dag 3" },
+            { key: "followUp4Day", label: "Kort påminnelse", icon: Clock, color: "text-amber-400", badge: "Dag 4" },
+            { key: "followUp5Day", label: "Sosial proof", icon: Clock, color: "text-amber-400", badge: "Dag 5" },
+            { key: "followUp6Day", label: "Tilbud", icon: Clock, color: "text-orange-400", badge: "Dag 6" },
             { key: "followUp7Day", label: "Siste sjanse", icon: Zap, color: "text-red-400", badge: "Dag 7" },
           ].map(({ key, label, icon: Icon, color, badge }) => {
             const text = lead[key as keyof Lead] as string | null;
