@@ -35,9 +35,13 @@ if (requiredKeys.every(Boolean)) {
     firecrawlKey: process.env.FIRECRAWL_API_KEY!,
     apifyKey: process.env.APIFY_API_KEY!,
     findymailKey: process.env.FINDYMAIL_API_KEY || undefined,
+    hunterApiKey: process.env.HUNTER_API_KEY || undefined,
   });
-  const extras = process.env.FINDYMAIL_API_KEY ? " + Findymail" : "";
-  console.log(`[ProspectAI] API keys loaded from .env${extras}`);
+  const extras = [
+    process.env.FINDYMAIL_API_KEY ? "Findymail" : "",
+    process.env.HUNTER_API_KEY ? "Hunter" : "",
+  ].filter(Boolean).join(" + ");
+  console.log(`[ProspectAI] API keys loaded from .env${extras ? " + " + extras : ""}`);
 }
 
 const app = express();
