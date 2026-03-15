@@ -1,0 +1,83 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ── Nexus-inspired dark tech palette ── */
+  --background: 222 20% 8%;
+  --foreground: 210 20% 92%;
+  --card: 222 18% 11%;
+  --card-foreground: 210 20% 92%;
+  --popover: 222 18% 11%;
+  --popover-foreground: 210 20% 92%;
+  --primary: 196 80% 48%;
+  --primary-foreground: 222 20% 8%;
+  --secondary: 222 15% 18%;
+  --secondary-foreground: 210 20% 85%;
+  --muted: 222 15% 16%;
+  --muted-foreground: 210 15% 55%;
+  --accent: 196 80% 48%;
+  --accent-foreground: 222 20% 8%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 15% 20%;
+  --input: 222 15% 18%;
+  --ring: 196 80% 48%;
+  --radius: 0.5rem;
+
+  /* chart colors */
+  --chart-1: 196 80% 48%;
+  --chart-2: 142 70% 45%;
+  --chart-3: 38 90% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 0 70% 55%;
+
+  /* custom */
+  --score-high: 142 70% 45%;
+  --score-mid: 38 90% 55%;
+  --score-low: 0 70% 50%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Satoshi', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+
+/* Glow effect for score badges */
+.score-glow-high { box-shadow: 0 0 12px hsla(142, 70%, 45%, 0.35); }
+.score-glow-mid  { box-shadow: 0 0 12px hsla(38, 90%, 55%, 0.35); }
+.score-glow-low  { box-shadow: 0 0 12px hsla(0, 70%, 50%, 0.35); }
+
+/* Animated gradient for active job */
+.pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 hsla(196, 80%, 48%, 0.4); }
+  70% { box-shadow: 0 0 0 8px hsla(196, 80%, 48%, 0); }
+  100% { box-shadow: 0 0 0 0 hsla(196, 80%, 48%, 0); }
+}
+
+/* Step indicator */
+.step-active { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.step-done { background: hsl(142 70% 45%); color: white; }
+.step-pending { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+
+/* Pain signal severity */
+.severity-high { color: hsl(0 70% 60%); background: hsl(0 70% 12%); border-color: hsl(0 70% 25%); }
+.severity-medium { color: hsl(38 90% 60%); background: hsl(38 90% 10%); border-color: hsl(38 90% 25%); }
+.severity-low { color: hsl(196 80% 60%); background: hsl(196 80% 10%); border-color: hsl(196 80% 25%); }
