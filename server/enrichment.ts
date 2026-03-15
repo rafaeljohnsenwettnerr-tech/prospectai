@@ -7,32 +7,64 @@
 
 import type { IcpProfile, Lead, PainSignal, ScoreBreakdown, ApiConfig } from "@shared/schema";
 
-// ── Extract email from scraped website content ──────────────────────────────
+// ── Extract email from ANY text — looks for @ sign aggressively ──────────────
 function extractEmailFromContent(content: string): string | null {
-  // Match standard email patterns, avoid image/asset extensions
-  const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
-  const matches = content.match(emailRegex) || [];
-  const filtered = matches.filter(e =>
-    !e.match(/\.(png|jpg|jpeg|gif|svg|webp|css|js|woff)/i) &&
-    !e.startsWith('noreply') &&
-    !e.startsWith('no-reply') &&
-    !e.includes('example.com') &&
-    !e.includes('sentry.io') &&
-    !e.includes('w3.org')
-  );
+  // Also catch mailto: links before markdown strips them
+  const mailtoMatches = content.match(/mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/gi) || [];
+  const atMatches = content.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || [];
+
+  // Combine: mailto hits first (most reliable), then plain @ matches
+  const all = [
+    ...mailtoMatches.map(m => m.replace(/^mailto:/i, "")),
+    ...atMatches,
+  ];
+
+  const BAD = [
+    /\.(png|jpg|jpeg|gif|svg|webp|css|js|woff|ttf|eot)/i,
+    /^noreply/i, /^no-reply/i, /^donotreply/i,
+    /example\.com/, /sentry\.io/, /w3\.org/, /schema\.org/,
+    /wix\.com/, /wordpress\.com/, /squarespace\.com/,
+    /google\.com/, /facebook\.com/, /instagram\.com/,
+    /yourdomain/, /yourname/, /din@/, /navn@/,
+  ];
+
+  const filtered = all.filter(e => !BAD.some(rx => rx.test(e)));
   return filtered[0] || null;
 }
 
-// ── Scrape contact page for email ─────────────────────────────────────────────
-async function scrapeContactPageEmail(websiteUrl: string, firecrawlKey: string): Promise<string | null> {
+// ── Scrape a URL and return BOTH markdown AND raw HTML (to catch mailto links) ─
+async function firecrawlScrapeRich(url: string, apiKey: string): Promise<{ text: string; raw: string }> {
   try {
-    const base = websiteUrl.replace(/\/$/, '');
-    const contactPaths = ['/kontakt', '/contact', '/om-oss', '/about', '/kontaktoss'];
-    for (const path of contactPaths) {
-      const content = await firecrawlScrape(base + path, firecrawlKey);
-      if (content) {
-        const email = extractEmailFromContent(content);
-        if (email) return email;
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ url, formats: ["markdown", "rawHtml"], timeout: 15000 }),
+    });
+    if (!res.ok) return { text: "", raw: "" };
+    const data = await res.json();
+    const md: string = data?.data?.markdown || "";
+    const html: string = data?.data?.rawHtml || "";
+    return { text: md.slice(0, 4000), raw: html.slice(0, 8000) };
+  } catch {
+    return { text: "", raw: "" };
+  }
+}
+
+// ── Scrape contact page for email — tries homepage + contact paths ─────────────
+async function scrapeEmailFromSite(websiteUrl: string, firecrawlKey: string): Promise<string | null> {
+  try {
+    const base = websiteUrl.replace(/\/$/, "");
+
+    // Paths to try in order
+    const paths = ["", "/kontakt", "/contact", "/kontaktoss", "/om-oss", "/about", "/kontakt-oss"];
+
+    for (const path of paths) {
+      const { text, raw } = await firecrawlScrapeRich(base + path, firecrawlKey);
+      // Try raw HTML first (has mailto: links), then markdown text
+      const email = extractEmailFromContent(raw) || extractEmailFromContent(text);
+      if (email) {
+        console.log(`[Email] Found via scrape at ${base + path}: ${email}`);
+        return email;
       }
     }
     return null;
@@ -41,16 +73,34 @@ async function scrapeContactPageEmail(websiteUrl: string, firecrawlKey: string):
   }
 }
 
-// ── Findymail email finder ────────────────────────────────────────────────────
+// ── Hunter.io domain search (via Perplexity connector) ────────────────────────
+async function hunterDomainSearch(domain: string, hunterApiKey: string): Promise<string | null> {
+  try {
+    const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+    const res = await fetch(
+      `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(cleanDomain)}&limit=5&api_key=${hunterApiKey}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const emails: any[] = data?.data?.emails || [];
+    // Prefer personal emails, then any
+    const personal = emails.find(e => e.type === "personal");
+    const first = emails[0];
+    const result = personal?.value || first?.value || null;
+    if (result) console.log(`[Email] Hunter domain search found: ${result}`);
+    return result;
+  } catch (e: any) {
+    console.error("[Hunter] domain search error:", e.message);
+    return null;
+  }
+}
+
+// ── Findymail email finder (kept as extra fallback) ───────────────────────────
 async function findymailSearch(businessName: string, domain: string, apiKey: string): Promise<string | null> {
   try {
-    // Try to find the owner/contact email using business name + domain
     const res = await fetch("https://app.findymail.com/api/search/name", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
         name: businessName,
         domain: domain.replace(/^https?:\/\//, "").replace(/\/.*$/, ""),
@@ -89,22 +139,9 @@ async function tavilySearch(query: string, apiKey: string): Promise<string> {
 
 // ── Firecrawl scrape ──────────────────────────────────────────────────────────
 async function firecrawlScrape(url: string, apiKey: string): Promise<string> {
-  try {
-    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ url, formats: ["markdown"], timeout: 15000 }),
-    });
-    if (!res.ok) return "";
-    const data = await res.json();
-    const md: string = data?.data?.markdown || "";
-    return md.slice(0, 3000);
-  } catch {
-    return "";
-  }
+  // Thin wrapper — reuse the rich scraper (gets both markdown + raw HTML)
+  const { text } = await firecrawlScrapeRich(url, apiKey);
+  return text;
 }
 
 // ── Apify Google Maps scrape ──────────────────────────────────────────────────
@@ -241,22 +278,32 @@ export async function enrichLead(
     facebookContent = await firecrawlScrape(enriched.facebookUrl, apiConfig.firecrawlKey);
   }
 
-  // 4. Find email — three strategies in order of preference:
+  // 4. Find email — 4 strategies in order:
   if (raw.website) {
-    // Strategy A: extract from homepage content we already have
-    if (websiteContent) {
-      const emailFromHome = extractEmailFromContent(websiteContent);
-      if (emailFromHome) { enriched.email = emailFromHome; console.log(`[Email] Found on homepage: ${emailFromHome}`); }
+    // Strategy A: scrape homepage + contact pages (raw HTML catches mailto: links)
+    const emailFromSite = await scrapeEmailFromSite(raw.website, apiConfig.firecrawlKey);
+    if (emailFromSite) enriched.email = emailFromSite;
+
+    // Strategy B: Hunter.io domain search (needs hunterApiKey in config)
+    if (!enriched.email && apiConfig.hunterApiKey) {
+      const emailFromHunter = await hunterDomainSearch(raw.website, apiConfig.hunterApiKey);
+      if (emailFromHunter) enriched.email = emailFromHunter;
     }
-    // Strategy B: scrape contact page if homepage had no email
-    if (!enriched.email) {
-      const emailFromContact = await scrapeContactPageEmail(raw.website, apiConfig.firecrawlKey);
-      if (emailFromContact) { enriched.email = emailFromContact; console.log(`[Email] Found on contact page: ${emailFromContact}`); }
-    }
-    // Strategy C: Findymail as final fallback (if key is set)
+
+    // Strategy C: Findymail (if key is set)
     if (!enriched.email && apiConfig.findymailKey) {
       const foundEmail = await findymailSearch(raw.name, raw.website, apiConfig.findymailKey);
-      if (foundEmail) { enriched.email = foundEmail; console.log(`[Email] Found via Findymail: ${foundEmail}`); }
+      if (foundEmail) enriched.email = foundEmail;
+    }
+
+    // Strategy D: Tavily email search as last resort
+    if (!enriched.email) {
+      const emailSearch = await tavilySearch(`${raw.name} ${raw.city} epost kontakt`, apiConfig.tavilyKey);
+      const emailFromSearch = extractEmailFromContent(emailSearch);
+      if (emailFromSearch) {
+        console.log(`[Email] Found via Tavily search: ${emailFromSearch}`);
+        enriched.email = emailFromSearch;
+      }
     }
   }
 
