@@ -42,11 +42,14 @@ export default function Setup() {
 
   // ICP
   const [icp, setIcp] = useState({
+    targetCategories: [] as string[], // multi-select
+    targetCities: [] as string[],     // multi-select
     targetCategory: "", targetCity: "", minRating: 0, maxRating: 5, minReviews: 0, maxReviews: 500,
     keywords: [] as string[], painPoints: [] as string[], numberOfLeads: 30,
     dreamOutcome: "",
   });
   const [keyword, setKeyword] = useState("");
+  const [cityInput, setCityInput] = useState("");
   const [isStarting, setIsStarting] = useState(false);
 
   const { data: configStatus } = useQuery({
@@ -91,7 +94,10 @@ export default function Setup() {
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/jobs/start", {
         ...icp,
-        targetCity: icp.targetCity || profile.targetCity,
+        targetCategories: icp.targetCategories,
+        targetCities: icp.targetCities,
+        targetCategory: icp.targetCategories[0] || icp.targetCategory,
+        targetCity: icp.targetCities[0] || icp.targetCity || profile.targetCity,
         minRating: icp.minRating || null,
         maxRating: icp.maxRating < 5 ? icp.maxRating : null,
         minReviews: icp.minReviews || null,
@@ -282,29 +288,79 @@ export default function Setup() {
             <CardDescription>Definer hvem du vil nå. AI-en filtrerer og prioriterer basert på dette.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-sm text-muted-foreground">Kategori å søke etter</Label>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {SERVICE_CATEGORIES.map(cat => (
+            {/* Multi-kategori */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Kategorier å søke etter <span className="text-primary text-xs">(velg én eller flere)</span></Label>
+              <div className="flex flex-wrap gap-1">
+                {SERVICE_CATEGORIES.map(cat => {
+                  const selected = icp.targetCategories.includes(cat);
+                  return (
                     <button key={cat}
-                      onClick={() => setIcp(p => ({ ...p, targetCategory: cat }))}
-                      className={`px-2 py-0.5 rounded text-xs border transition-colors ${icp.targetCategory === cat ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
-                      {cat}
+                      onClick={() => setIcp(p => ({
+                        ...p,
+                        targetCategories: selected
+                          ? p.targetCategories.filter(c => c !== cat)
+                          : [...p.targetCategories, cat]
+                      }))}
+                      className={`px-2 py-0.5 rounded text-xs border transition-colors ${selected ? "border-primary bg-primary/15 text-primary font-medium" : "border-border text-muted-foreground hover:border-primary/50"}`}>
+                      {selected ? "✓ " : ""}{cat}
                     </button>
-                  ))}
-                </div>
-                <Input data-testid="input-icp-category" placeholder="Eller skriv selv..." value={icp.targetCategory}
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <Input placeholder="Eller skriv kategori..." value={icp.targetCategory}
                   onChange={e => setIcp(p => ({ ...p, targetCategory: e.target.value }))}
-                  className="bg-secondary border-border" />
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && icp.targetCategory.trim()) {
+                      setIcp(p => ({ ...p, targetCategories: [...new Set([...p.targetCategories, p.targetCategory.trim()])], targetCategory: "" }));
+                    }
+                  }}
+                  className="bg-secondary border-border flex-1 text-sm" />
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (icp.targetCategory.trim()) {
+                    setIcp(p => ({ ...p, targetCategories: [...new Set([...p.targetCategories, p.targetCategory.trim()])], targetCategory: "" }));
+                  }
+                }}>Legg til</Button>
               </div>
-              <div className="space-y-1">
-                <Label className="text-sm text-muted-foreground">By å søke i</Label>
-                <Input data-testid="input-icp-city" placeholder="f.eks. Drammen"
-                  value={icp.targetCity || profile.targetCity}
-                  onChange={e => setIcp(p => ({ ...p, targetCity: e.target.value }))}
-                  className="bg-secondary border-border" />
+              {icp.targetCategories.length === 0 && (
+                <p className="text-xs text-amber-400">Velg minst én kategori</p>
+              )}
+            </div>
+
+            {/* Multi-by */}
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Byer å søke i <span className="text-primary text-xs">(én eller flere)</span></Label>
+              <div className="flex gap-2">
+                <Input placeholder="f.eks. Oslo, Bergen, Trondheim..." value={cityInput}
+                  onChange={e => setCityInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && cityInput.trim()) {
+                      const cities = cityInput.split(",").map(c => c.trim()).filter(Boolean);
+                      setIcp(p => ({ ...p, targetCities: [...new Set([...p.targetCities, ...cities])] }));
+                      setCityInput("");
+                    }
+                  }}
+                  className="bg-secondary border-border flex-1 text-sm" />
+                <Button variant="outline" size="sm" onClick={() => {
+                  const cities = cityInput.split(",").map(c => c.trim()).filter(Boolean);
+                  if (cities.length) {
+                    setIcp(p => ({ ...p, targetCities: [...new Set([...p.targetCities, ...cities])] }));
+                    setCityInput("");
+                  }
+                }}>Legg til</Button>
               </div>
+              <div className="flex flex-wrap gap-1">
+                {icp.targetCities.map((city, i) => (
+                  <Badge key={i} variant="secondary" className="gap-1 cursor-pointer text-xs"
+                    onClick={() => setIcp(p => ({ ...p, targetCities: p.targetCities.filter((_, j) => j !== i) }))}>
+                    {city} ×
+                  </Badge>
+                ))}
+              </div>
+              {icp.targetCities.length === 0 && (
+                <p className="text-xs text-muted-foreground">Skriv by og trykk Enter eller Legg til. Del med komma for å legge til flere.</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -380,7 +436,7 @@ export default function Setup() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)} className="flex-1">Tilbake</Button>
               <Button data-testid="btn-next-to-launch" onClick={() => setStep(4)}
-                disabled={!icp.targetCategory}
+                disabled={icp.targetCategories.length === 0 || icp.targetCities.length === 0}
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
                 Neste <ChevronRight size={15} className="ml-1" />
               </Button>
@@ -401,9 +457,9 @@ export default function Setup() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Søker etter", value: icp.targetCategory },
-                { label: "By", value: icp.targetCity || profile.targetCity },
-                { label: "Antall leads", value: `${icp.numberOfLeads} bedrifter` },
+                { label: "Kategorier", value: icp.targetCategories.join(", ") || icp.targetCategory },
+                { label: "Byer", value: icp.targetCities.join(", ") },
+                { label: "Antall leads", value: `${icp.numberOfLeads} totalt` },
                 { label: "Rating filter", value: icp.minRating > 0 || icp.maxRating < 5 ? `${icp.minRating} – ${icp.maxRating}` : "Alle" },
               ].map(({ label, value }) => (
                 <div key={label} className="p-3 rounded-lg bg-secondary/50 border border-border">
